@@ -48,18 +48,32 @@ Output: `dist/app.exe`. The spec bundles `campaign-task-generator.html` as embed
 
 **Hardcoded IDs** (in the HTML constants section):
 - Google Sheet ID: `1a2JrH9S-kjZmNk2FV57u0IFuoURaLuhVvIAueoyRbhE`
-- Notion Database ID: `072afca5fa47426192d29dc9406d1e74`
+- Notion DB IDs: `NOTION_DB = { SOL: "e8d941b4...", VI: "253ff746..." }` — brand-specific
 
 **Countries split**:
 - Core: BG, CZ, HR, HU, PL, RO, SK, DE, GR, IT
 - Extended: LT, LV, AT, RS, EE, NL
-- Brands: SOL (SOLDIUS), OR (ORBITALIS), TR (TOPRABAT)
+- All: also includes ES, PT (ES and PT auto-append `EXCLUDE LOCATIONS` block for island regions)
+- Country pair: AT+DE share videos in DGV output (labeled "AT, DE" / "DE, AT")
+- Brands: SOL (SOLDIUS), OR (ORBITALIS), TR (TOPRABAT), VI (VIGOSHOP)
+
+**VIGOSHOP (VI) differences**:
+- Uses a separate Notion database with a different schema: property `"BRAND"` (not `"Brand"`), and `Status` as `select` (not `status`)
+- Has its own Notion API key, proxy URL, and notes stored in `localStorage` under `notion_api_key_vi`, `notion_proxy_vi`, `notion_notes_vi`
+- VI proxy falls back to SOL proxy if left empty
 
 **OTHER mode** (DGV only): Controls whether the "OTHER" video block is distributed to all countries or only those without a local video assignment.
+
+## Development
+
+**Run locally** (without building the exe): `python serve.py` — starts a plain HTTP server on port 3456, serving `campaign-task-generator.html` at `/`. This avoids the Edge `--disable-web-security` flag, so Google Sheets API calls may be blocked by CORS in this mode. Useful for layout/logic iteration.
+
+**Build the exe**: `pyinstaller app.spec` → `dist/app.exe`. The spec bundles `campaign-task-generator.html` as embedded data. The exe copies it to `view_generator.html` next to itself at runtime, then opens it in Edge app mode with `--disable-web-security` and `--user-data-dir=C:/temp_edge_generator`.
 
 ## Key Conventions
 
 - UI language is **Slovenian**.
-- No build step for the HTML — edit `campaign-task-generator.html` directly; changes are live on next app launch.
+- No build step for the HTML — edit `campaign-task-generator.html` directly; changes are live on next app launch (or `serve.py` reload).
 - Settings (API key, proxy URL) are user-configured via the collapsible settings panel and persisted to `localStorage` — they are not in code.
+- `view_generator.html` in the project root and in `dist/` are runtime copies — never edit them directly.
 - Debounce delays: 50ms for re-render, 800ms for Google Sheets fetch triggered by campaign name input.

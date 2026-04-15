@@ -107,7 +107,7 @@ async function fetchSheetTab(sheetId,tabName){
 }
 
 // Notion API
-async function createNotionTask(proxyUrl, apiKey, data) {
+async function createNotionTask(apiKey, data) {
   const isVI = data.brand === "VIGOSHOP";
   const properties = {
     "Task name": {
@@ -159,7 +159,7 @@ async function createNotionTask(proxyUrl, apiKey, data) {
     children.push({ object: "block", type: blockType, [blockType]: { rich_text: richText } });
   }
   
-  const res = await fetch(proxyUrl, {
+  const res = await fetch("http://127.0.0.1:9191", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ apiKey, body: { parent: { database_id: data.dbId }, properties, children } })
@@ -181,8 +181,6 @@ const state={
   notionNotesVI:localStorage.getItem("notion_notes_vi")||"",
   notionApiKey:localStorage.getItem("notion_api_key")||"",
   notionApiKeyVI:localStorage.getItem("notion_api_key_vi")||"",
-  notionProxy:localStorage.getItem("notion_proxy")||"",
-  notionProxyVI:localStorage.getItem("notion_proxy_vi")||"",
   output:"",copied:false,notionStatus:"",prevType:"",settingsOpen:false,
   manualEditOpen:false,
 };
@@ -287,11 +285,9 @@ function renderCountries(eff,excl){const presets={Vse:ALL_COUNTRIES,Core:CORE_CO
 function renderSettings(){return`<div class="section"><div class="section-header clickable" id="toggleSettings"><span>⚙️</span><span class="section-title">Nastavitve</span><span style="color:#475569;font-size:12px">${state.settingsOpen?"▾":"▸"}</span></div>${state.settingsOpen?`<div class="section-body">
 <div style="font-size:10px;font-weight:700;color:#3b82f6;letter-spacing:.08em;margin-bottom:8px">SOLDIUS (SOL)</div>
 <div style="margin-bottom:12px"><label class="input-label">Notion API Key</label><input class="input-field" id="notionApiKey" type="password" value="${esc(state.notionApiKey)}" placeholder="ntn_..." style="font-size:10px"></div>
-<div style="margin-bottom:12px"><label class="input-label">Notion Proxy URL</label><input class="input-field" id="notionProxy" value="${esc(state.notionProxy)}" placeholder="https://your-worker.workers.dev" style="font-size:10px"></div>
 <div style="height:1px;background:#1e293b;margin:12px 0"></div>
 <div style="font-size:10px;font-weight:700;color:#f472b6;letter-spacing:.08em;margin-bottom:8px">VIGOSHOP (VI)</div>
 <div style="margin-bottom:12px"><label class="input-label">Notion API Key</label><input class="input-field" id="notionApiKeyVI" type="password" value="${esc(state.notionApiKeyVI)}" placeholder="ntn_..." style="font-size:10px"></div>
-<div style="margin-bottom:12px"><label class="input-label">Notion Proxy URL <span class="muted">(prazno = isti kot SOL)</span></label><input class="input-field" id="notionProxyVI" value="${esc(state.notionProxyVI)}" placeholder="https://your-worker.workers.dev" style="font-size:10px"></div>
 <div style="margin-bottom:12px"><label class="input-label">Notion Notes</label><input class="input-field" id="notionNotesVI" value="${esc(state.notionNotesVI)}" placeholder="npr. 38 DG/V daily"></div>
 <div style="height:1px;background:#1e293b;margin:12px 0"></div>
 <div style="margin-bottom:12px"><label class="input-label">Google Sheet ID</label><input class="input-field" id="sheetId" value="${esc(state.sheetId)}" style="font-size:10px"></div>
@@ -360,10 +356,9 @@ function renderOutput(){
   const o=state.output;
   const isVI=state.parsed?.brand==="VI";
   const activeKey=isVI?state.notionApiKeyVI:state.notionApiKey;
-  const activeProxy=isVI?(state.notionProxyVI||state.notionProxy):state.notionProxy;
-  const notionReady=!!(activeKey&&activeProxy);
+  const notionReady=!!activeKey;
   const brandLabel=isVI?"VIGOSHOP":"SOLDIUS";
-  return`<div style="flex:1;display:flex;flex-direction:column"><div class="flex" style="align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span>📄</span> Task output</div><div class="flex gap-8">${o?`<button class="btn-notion ${state.notionStatus==="success"?"success":""}" id="btnNotion" ${!notionReady?"disabled":""}>${state.notionStatus==="loading"?"⟳ ...":state.notionStatus==="success"?"✓ V Notionu!":state.notionStatus==="error"?"✗ Napaka":`📤 Objavi → ${brandLabel}`}</button>`:""}${o?`<button class="btn-copy ${state.copied?"copied":""}" id="btnCopy">${state.copied?"✓ Kopirano!":"Kopiraj"}</button>`:""}</div></div>${o?`<div class="output-box">${renderBoldText(esc(o)).replace(/\n/g,"<br>")}</div>`:'<div class="center-msg"><div style="font-size:36px">⚡</div><div style="font-size:12px">Vnesi campaign name in izberi države</div></div>'}${!notionReady?`<div class="muted mt-8">💡 Za objavo v Notion vnesi ${isVI?"VIGOSHOP":"SOLDIUS"} API key in Proxy URL v ⚙️ Nastavitve</div>`:""}</div>`
+  return`<div style="flex:1;display:flex;flex-direction:column"><div class="flex" style="align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span>📄</span> Task output</div><div class="flex gap-8">${o?`<button class="btn-notion ${state.notionStatus==="success"?"success":""}" id="btnNotion" ${!notionReady?"disabled":""}>${state.notionStatus==="loading"?"⟳ ...":state.notionStatus==="success"?"✓ V Notionu!":state.notionStatus==="error"?"✗ Napaka":`📤 Objavi → ${brandLabel}`}</button>`:""}${o?`<button class="btn-copy ${state.copied?"copied":""}" id="btnCopy">${state.copied?"✓ Kopirano!":"Kopiraj"}</button>`:""}</div></div>${o?`<div class="output-box">${renderBoldText(esc(o)).replace(/\n/g,"<br>")}</div>`:'<div class="center-msg"><div style="font-size:36px">⚡</div><div style="font-size:12px">Vnesi campaign name in izberi države</div></div>'}${!notionReady?`<div class="muted mt-8">💡 Za objavo v Notion vnesi ${isVI?"VIGOSHOP":"SOLDIUS"} API key v ⚙️ Nastavitve</div>`:""}</div>`
 }
 
 // Event binding
@@ -379,8 +374,7 @@ function bindEvents(){
   on("toggleSettings","click",()=>{state.settingsOpen=!state.settingsOpen;render()});
   on("notionApiKey","input",e=>{state.notionApiKey=e.target.value;localStorage.setItem("notion_api_key",e.target.value)});
   on("notionApiKeyVI","input",e=>{state.notionApiKeyVI=e.target.value;localStorage.setItem("notion_api_key_vi",e.target.value)});
-  on("notionProxy","input",e=>{state.notionProxy=e.target.value;localStorage.setItem("notion_proxy",e.target.value)});
-  on("notionProxyVI","input",e=>{state.notionProxyVI=e.target.value;localStorage.setItem("notion_proxy_vi",e.target.value)});
+
   on("sheetId","input",e=>{state.sheetId=e.target.value});
   on("notionNotes","input",e=>{state.notionNotes=e.target.value;localStorage.setItem("notion_notes",e.target.value);scheduleRender()});
   on("notionNotesVI","input",e=>{state.notionNotesVI=e.target.value;localStorage.setItem("notion_notes_vi",e.target.value);scheduleRender()});
@@ -395,13 +389,12 @@ function bindEvents(){
     const brand=state.parsed?.brand;
     const isVI=brand==="VI";
     const apiKey=isVI?state.notionApiKeyVI:state.notionApiKey;
-    const proxy=isVI?(state.notionProxyVI||state.notionProxy):state.notionProxy;
     const dbId=NOTION_DB[brand]||NOTION_DB.SOL;
-    if(!apiKey||!proxy)return;
+    if(!apiKey)return;
     state.notionStatus="loading";render();
     try{
       const activeNotes=isVI?state.notionNotesVI:state.notionNotes;
-      await createNotionTask(proxy,apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId});
+      await createNotionTask(apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId});
       state.notionStatus="success";render();setTimeout(()=>{state.notionStatus="";render()},3000)
     }catch(err){console.error("Notion:",err);state.notionStatus="error";render();setTimeout(()=>{state.notionStatus="";render()},3000)}
   });
