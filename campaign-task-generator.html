@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Campaign Task Generator</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#080e1a;color:#e2e8f0;font-family:'JetBrains Mono','SF Mono','Fira Code','Consolas',monospace;font-size:13px}
+  input,textarea,button,select{font-family:inherit}
+  ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:#0f172a}::-webkit-scrollbar-thumb{background:#334155;border-radius:3px}
+  .topbar{padding:14px 24px;border-bottom:1px solid #151d2e;display:flex;align-items:center;gap:16;background:#0a1120}
+  .topbar-icon{width:32px;height:32px;border-radius:6px;background:linear-gradient(135deg,#3b82f6,#6366f1);display:flex;align-items:center;justify-content:center;font-size:15px}
+  .topbar-title{font-size:14px;font-weight:700;color:#f1f5f9}.topbar-sub{font-size:10px;color:#475569;margin-top:1px}
+  .badge{padding:4px 10px;border-radius:4px;font-size:11px;font-weight:700}
+  .grid{display:grid;grid-template-columns:360px 1fr 1fr;height:calc(100vh - 61px)}
+  .panel{overflow-y:auto;padding:16px}.panel-left{border-right:1px solid #151d2e;background:#090f1c}.panel-mid{border-right:1px solid #151d2e;background:#080e1a}.panel-right{background:#070d18;display:flex;flex-direction:column}
+  .section{background:#0c1322;border-radius:10px;border:1px solid #1e293b;overflow:hidden;margin-bottom:12px}
+  .section-header{padding:12px 16px;display:flex;align-items:center;gap:8;border-bottom:1px solid #1e293b;user-select:none}
+  .section-header.collapsed{border-bottom:none}.section-header.clickable{cursor:pointer}
+  .section-title{font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;flex:1}
+  .section-body{padding:16px}.section-badge{font-size:9px;padding:2px 8px;border-radius:10px;background:#10b98120;color:#6ee7b7;font-weight:700}
+  .input-label{font-size:10px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;font-weight:600;margin-bottom:4px;display:block}
+  .input-label .req{color:#f43f5e}
+  .input-field{width:100%;padding:9px 12px;border-radius:6px;border:1px solid #1e293b;background:#0f172a;color:#f1f5f9;font-size:13px;outline:none;transition:border-color .15s}
+  .input-field:focus{border-color:#3b82f6}.input-field.big{padding:11px 12px;font-weight:600}.input-field.bep{color:#fbbf24;font-weight:800;font-size:16px}
+  .chip{padding:4px 10px;border-radius:6px;border:1px solid #334155;background:transparent;color:#64748b;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s}
+  .chip.active{border-color:#3b82f6;background:#3b82f620;color:#f1f5f9}
+  .preset-btn{padding:3px 10px;border-radius:4px;border:1px solid #1e293b;background:#0f172a;color:#64748b;font-size:10px;cursor:pointer;font-weight:600}
+  .preset-btn.active{background:#1e293b}
+  .priority-btn{flex:1;padding:8px 12px;border-radius:6px;border:1px solid #1e293b;background:transparent;color:#475569;font-size:12px;font-weight:700;cursor:pointer;transition:all .15s}
+  .video-country{margin-bottom:10px}.video-country-label{font-size:12px;font-weight:700;color:#cbd5e1;margin-bottom:4px;display:flex;align-items:center;gap:6px}
+  .video-dot{display:inline-block;width:6px;height:6px;border-radius:3px}.video-block-label{font-size:9px;color:#475569;margin-bottom:2px;font-weight:600;margin-left:12px}
+  .video-item{display:flex;align-items:center;gap:6px;padding:3px 6px;border-radius:4px;cursor:pointer;margin-left:12px}.video-item.selected{background:#1e3a5f22}
+  .video-url{font-family:monospace;font-size:10.5px;word-break:break-all}
+  .output-box{flex:1;padding:14px;border-radius:8px;background:#020617;border:1px solid #151d2e;font-size:11.5px;line-height:1.7;color:#94a3b8;white-space:pre-wrap;word-break:break-all;font-family:monospace;overflow:auto}
+  .output-box b{color:#e2e8f0;font-weight:800}
+  .btn-copy{padding:6px 16px;border-radius:6px;border:none;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(59,130,246,.25)}
+  .btn-copy.copied{background:linear-gradient(135deg,#10b981,#059669)}
+  .btn-notion{padding:6px 16px;border-radius:6px;border:none;background:linear-gradient(135deg,#f97316,#ef4444);color:#fff;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(249,115,22,.25)}
+  .btn-notion.success{background:linear-gradient(135deg,#10b981,#059669)}.btn-notion:disabled{opacity:.5;cursor:not-allowed}
+  .notion-grid{display:grid;grid-template-columns:110px 1fr;gap:2px 8px;font-size:11px;line-height:1.8}.notion-label{color:#475569}.notion-value{color:#f1f5f9}
+  .warning{margin-top:8px;padding:6px 10px;border-radius:6px;background:#7f1d1d18;border:1px solid #7f1d1d40;font-size:10px;color:#fca5a5}
+  .info{margin-top:6px;font-size:10px;color:#10b981}.muted{color:#475569;font-size:10px}
+  .radio-option{display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:11px;padding:6px 8px;border-radius:6px}.radio-option.active{background:#1e293b}
+  .radio-title{font-weight:600}.radio-desc{font-size:10px;color:#475569;margin-top:2px}
+  .flex{display:flex}.flex-wrap{flex-wrap:wrap}.gap-4{gap:4px}.gap-6{gap:6px}.gap-8{gap:8px}.mt-8{margin-top:8px}.mb-10{margin-bottom:10px}.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}.flex-1{flex:1}
+  .center-msg{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px;color:#1e293b;height:100%}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tag{font-size:10px;padding:2px 8px;border-radius:4px;background:#1e293b}
+  .manual-edit{margin-top:12px;padding-top:12px;border-top:1px solid #1e293b}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+// ═══════════════════════════════════════════════════════════════
+const ALL_COUNTRIES=["BG","CZ","HR","HU","PL","RO","SK","LT","LV","DE","GR","IT","AT","RS","EE","NL","ES","PT"];
+const CORE_COUNTRIES=["BG","CZ","HR","HU","PL","RO","SK","DE","GR","IT"];
+const EXTENDED_COUNTRIES=["LT","LV","AT","RS","EE","NL"];
+const BRAND_MAP={SOL:"SOLDIUS",OR:"ORBITALIS",TR:"TOPRABAT",VI:"VIGOSHOP"};
+const COUNTRY_PAIRS=[["AT","DE"]];
+const PRIORITY_LIST=["High","Medium","Low"];
+const PRIORITY_ICONS={High:"🔥",Medium:"⚡",Low:"○"};
+const PRIORITY_COLORS={High:"#fbbf24",Medium:"#f97316",Low:"#64748b"};
+const TYPE_COLORS={DGV:"#a78bfa",DG:"#6ee7b7",GDN:"#f472b6"};
+const TYPE_BG={DGV:"#8b5cf620",DG:"#10b98120",GDN:"#ec489920"};
+const DEFAULT_SHEET_ID="1a2JrH9S-kjZmNk2FV57u0IFuoURaLuhVvIAueoyRbhE";
+const NOTION_DB={SOL:"e8d941b4961c43f0b793879f2129b3c7",VI:"253ff746228d80dfbc34ed3e7df938ee"};
+
+// Templates
+function remAudience(isVI){return isVI?`REM Audience: Use already created audience — just search **"REM | ALL"**`:`REM Audience: All users 30, All orders 90, Cart 540, Returning Users 30 (if some is missing add Homepage 540, All users 90,..)`}
+function dgvTemplate(bep,cpa,bidCpa,budget,isVI){const p=cpa?`(**BEP ${bep}+, CPA ${cpa}+**)`:`(**BEP ${bep}+**)`;return`USE **PP LINK**\n• ${p}\n• SET ${bidCpa} CPA\n• **${budget}€** Budget\n• Turn OFF **TV** Option\n• REM Ad Group = ON OT\n• BROAD Ad Group = ON OT\n• ${remAudience(isVI)}\n• **TURN OFF "Show a screenshot of your landing page in your ads"**\n• **TURN OFF Asset optimization**\n• Video Links:`}
+function dgTemplate(bep,cpa,bidCpa,budget,isVI){const p=cpa?`(**BEP ${bep}+, CPA ${cpa}+**)`:`(**BEP ${bep}+**)`;return`USE **PP LINK**\n• ${p}\n• SET ${bidCpa} CPA\n• **${budget}€** Budget\n• Turn OFF **TV** Option\n• **TURN OFF Display Network**\n• REM Ad Group = ON OT\n• BROAD Ad Group = ON OT\n• ${remAudience(isVI)}\n• **TURN OFF Asset optimization**\n• **Don't** create VIDEO ad with "**Campaign Suggestions**"\n• **Pictures:** Copy/use from the main campaign`}
+function gdnTemplate(bep,budget){return`• **PP LINK**\n• (**BEP ${bep}+**)\n• **${budget}€** Budget\n• Pay attention to **tracking** and that the **location** is set to presence\n• Copy the same **CUSTOM** audience. Use ALL **CUSTOM** audience even if it's paused\n• For **Remarketing** use ALL USERS 90, HOMEPAGE 540, RETURNING USERS 30 and ORDERS 90\n• **Use the same COPY** - Be careful to change the prices in copy according to the country\n• **Pictures:** Copy/use from the main campaign\n• **VIDEO** Link:`}
+
+// Parsing
+function parseCampaignName(n){const p=n.split("|").map(s=>s.trim());if(p.length>=4)return{country:p[0],brand:p[1],product:p[2],type:p[3],date:p[4]||"",creator:p[5]||""};return null}
+
+function parseVideos(text){
+  if(!text||!text.trim())return{};
+  const lines=text.split("\n").filter(l=>l.trim());
+  const videos={};let block=1,empty=0;
+  for(const line of lines){
+    const cells=line.includes("\t")?line.split("\t").map(c=>c.trim()):line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(c=>c.replace(/^"|"$/g,"").trim());
+    const yt=[];let cStr="";
+    for(const cell of cells){
+      const m=cell.match(/https?:\/\/youtu\.?be[^\s,"]*/g);
+      if(m)yt.push(...m);
+      // Match country codes, ALL, or GDN label
+      if(/^[A-Z]{2}(\s*,\s*[A-Z]{2})*$/.test(cell)&&!/^(HD|TV|SI|PP|ON|OT|US)$/.test(cell))cStr=cell;
+      if(/^ALL/.test(cell))cStr="ALL";
+      if(/^GDN/.test(cell))cStr="GDN";
+    }
+    if(!yt.length&&!cStr){empty++;if(empty>=1)block++;continue}
+    empty=0;
+    if(yt.length&&cStr){
+      const cs=cStr==="ALL"?["ALL"]:cStr==="GDN"?["GDN"]:cStr.split(",").map(c=>c.trim()).filter(c=>c.length===2);
+      for(const c of cs){if(!videos[c])videos[c]=[];for(const u of yt)videos[c].push({url:u,block})}
+    }
+  }
+  return videos;
+}
+
+// Google Sheets
+async function fetchSheetTab(sheetId,tabName){
+  try{const r=await fetch(`https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(tabName)}`);if(!r.ok)return null;return await r.text()}catch{return null}
+}
+
+// Notion API
+async function createNotionTask(proxyUrl, apiKey, data) {
+  const isVI = data.brand === "VIGOSHOP";
+  const properties = {
+    "Task name": {
+      title: [{ text: { content: data.taskName } }]
+    },
+    "Campaign name (base)": {
+      rich_text: [{ text: { content: data.campaignName } }]
+    },
+    [isVI ? "BRAND" : "Brand"]: {
+      select: { name: data.brand }
+    },
+    "Status": isVI
+      ? { select: { name: "New" } }
+      : { status: { name: "New" } },
+    "Priority": {
+      select: { name: data.priority }
+    },
+    "Copy to": {
+      rich_text: [{ text: { content: data.copyTo } }]
+    },
+    "Notes": {
+      rich_text: [{ text: { content: data.notes } }]
+    }
+  };
+  
+  const children = [];
+  for (const rawLine of data.taskBody.split("\n")) {
+    // Preskoči prazne vrstice
+    if (!rawLine.trim()) continue;
+
+    // Določi tip bloka in odstrani • prefix
+    const isBullet = rawLine.startsWith("• ") || rawLine.startsWith("• ");
+    const line = isBullet ? rawLine.replace(/^•\s+/, "") : rawLine;
+    const blockType = isBullet ? "bulleted_list_item" : "paragraph";
+
+    const richText = [];
+    const parts = line.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s]+)/);
+    for (const part of parts) {
+      if (!part) continue;
+      if (part.startsWith("**") && part.endsWith("**")) {
+        richText.push({ type: "text", text: { content: part.slice(2, -2) }, annotations: { bold: true } });
+      } else if (part.startsWith("http://") || part.startsWith("https://")) {
+        richText.push({ type: "text", text: { content: part, link: { url: part } } });
+      } else {
+        richText.push({ type: "text", text: { content: part } });
+      }
+    }
+    if (!richText.length) continue;
+    children.push({ object: "block", type: blockType, [blockType]: { rich_text: richText } });
+  }
+  
+  const res = await fetch(proxyUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, body: { parent: { database_id: data.dbId }, properties, children } })
+  });
+  
+  if (!res.ok) throw new Error(await res.text());
+  return await res.json();
+}
+// State
+const state={
+  campaignName:"",parsed:null,
+  bep:"12",cpa:"",bidCpa:"8",budget:"15",
+  priority:"Medium",countries:[],
+  otherMode:"without",
+  rawVideos:{},selectedVideos:{},
+  sheetPaste:"",sheetId:DEFAULT_SHEET_ID,sheetStatus:"",
+  gdnVideoUrl:"",
+  notionNotes:localStorage.getItem("notion_notes")||"38 DG/V daily",
+  notionNotesVI:localStorage.getItem("notion_notes_vi")||"",
+  notionApiKey:localStorage.getItem("notion_api_key")||"",
+  notionApiKeyVI:localStorage.getItem("notion_api_key_vi")||"",
+  notionProxy:localStorage.getItem("notion_proxy")||"",
+  notionProxyVI:localStorage.getItem("notion_proxy_vi")||"",
+  output:"",copied:false,notionStatus:"",prevType:"",settingsOpen:false,
+  manualEditOpen:false,
+};
+
+function getType(){return state.parsed?.type||"DGV"}
+function getBrand(){return BRAND_MAP[state.parsed?.brand]||state.parsed?.brand||"SOLDIUS"}
+function getProduct(){return state.parsed?.product||""}
+function hasVideos(){return getType()==="DGV"}
+function isGdn(){return getType()==="GDN"}
+
+function getEffectiveCountries(){
+  if(isGdn())return state.countries;
+  if(!hasVideos()||!Object.keys(state.rawVideos).length)return state.countries;
+  const hasAll=(state.selectedVideos["ALL"]||[]).length>0;
+  return state.countries.filter(c=>(state.selectedVideos[c]||[]).length>0||hasAll);
+}
+function getExcludedCountries(){
+  if(isGdn()||!hasVideos()||!Object.keys(state.rawVideos).length)return[];
+  const eff=getEffectiveCountries();return state.countries.filter(c=>!eff.includes(c));
+}
+
+function generateOutput(){
+  const eff=getEffectiveCountries();
+  if(!state.campaignName.trim()||!eff.length)return"";
+  const header=`${state.campaignName.trim()} to ${eff.join(", ")}`;
+  const t=getType();
+  const isVI=state.parsed?.brand==="VI";
+  let tpl;
+  if(t==="DGV")tpl=dgvTemplate(state.bep,state.cpa,state.bidCpa,state.budget,isVI);
+  else if(t==="DG")tpl=dgTemplate(state.bep,state.cpa,state.bidCpa,state.budget,isVI);
+  else if(t==="GDN")tpl=gdnTemplate(state.bep,state.budget);
+  else tpl=dgvTemplate(state.bep,state.cpa,state.bidCpa,state.budget,isVI);
+  let result=`${header}\n\n${tpl}`;
+
+  if(t==="DGV"){
+    // ALL selected videos = OTHER (can be multiple)
+    const allV=state.selectedVideos["ALL"]||[];
+    if(allV.length){
+      // SPREMEMBA: 3 presledki med "OTHER" videi
+      result+=`\n\nOTHER: ${allV.join("   ")}`;
+      if(state.otherMode==="without")result+="\nUse OTHER only for countries without local video";
+    }
+    result+="\n";
+    for(const c of eff){
+      const v=state.selectedVideos[c]||[];
+      if(!v.length)continue;
+      let label=c;
+      if(c==="AT"&&eff.includes("DE"))label="AT, DE";
+      else if(c==="DE"&&eff.includes("AT"))label="DE, AT";
+      if(allV.length&&state.otherMode==="all")result+=`\n${label}: OTHER +   ${v.join("   ")}`;
+      else result+=`\n${label}: ${v.join("   ")}`;
+    }
+  }
+  // GDN video
+  if(t==="GDN"&&state.gdnVideoUrl)result+=`\n${state.gdnVideoUrl}`;
+  // Exclude locations for ES and PT
+  const excLoc=[];
+  if(eff.includes("ES"))excLoc.push("SPAIN:\nBalearic Islands, Spain\nCanary Islands, Spain");
+  if(eff.includes("PT"))excLoc.push("PORTUGAL:\nAzores, Portugal\nMadeira, Portugal");
+  if(excLoc.length)result+=`\n\nEXCLUDE LOCATIONS:\n\n${excLoc.join("\n\n")}`;
+  return result;
+}
+
+// Rendering
+function renderBoldText(t) {
+  return t
+    .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" style="color: #93c5fd; text-decoration: underline; text-underline-offset: 2px;">$1</a>');
+}
+
+function render(){
+  const focusedId=document.activeElement?.id;
+  const selStart=document.activeElement?.selectionStart;
+  const selEnd=document.activeElement?.selectionEnd;
+  state.parsed=parseCampaignName(state.campaignName);
+  state.output=generateOutput();
+  const t=getType();
+  if(t!==state.prevType){state.prevType=t;if(t==="GDN"){state.budget="11";if(!state.countries.length)state.countries=[...CORE_COUNTRIES]}else if(t==="DG"||t==="DGV"){state.budget="15"}state.output=generateOutput()}
+  const p=state.parsed,brand=getBrand(),product=getProduct(),eff=getEffectiveCountries(),excl=getExcludedCountries();
+  const tc=TYPE_COLORS[t]||"#94a3b8",tb=TYPE_BG[t]||"#1e293b",pc=PRIORITY_COLORS[state.priority];
+
+  document.getElementById("app").innerHTML=`
+    <div class="topbar"><div class="topbar-icon">⚡</div><div class="flex-1"><div class="topbar-title">Campaign Task Generator</div><div class="topbar-sub">${brand} · ${t}</div></div>
+    ${p?`<div class="flex gap-8" style="align-items:center"><span class="badge" style="background:${tb};color:${tc};border:1px solid ${tc}40">${t}</span><span class="badge" style="background:${pc}18;color:${pc}">${PRIORITY_ICONS[state.priority]} ${state.priority}</span>${state.sheetStatus==="success"?'<span class="badge" style="background:#10b98120;color:#6ee7b7">✓ Sheet</span>':""}${state.sheetStatus==="loading"?'<span class="badge" style="background:#3b82f620;color:#93c5fd">⟳ Sheet...</span>':""}</div>`:""}</div>
+    <div class="grid">
+      <div class="panel panel-left">${renderCampaign()}${renderPriority()}${renderPricing()}${renderCountries(eff,excl)}${renderSettings()}</div>
+      <div class="panel panel-mid">${hasVideos()?renderDGVVideos():isGdn()?renderGDNVideo():renderDGPlaceholder()}</div>
+      <div class="panel panel-right">${renderNotionData(eff,brand)}${renderOutput()}</div>
+    </div>`;
+  bindEvents();
+  if(focusedId){const el=document.getElementById(focusedId);if(el){el.focus();try{el.setSelectionRange(selStart,selEnd)}catch(e){}}}
+}
+
+function renderCampaign(){const p=state.parsed,tc=TYPE_COLORS[getType()]||"#94a3b8";return`<div class="section"><div class="section-header"><span>📋</span><span class="section-title">Kampanja</span></div><div class="section-body"><label class="input-label">Campaign name <span class="req">*</span></label><input class="input-field big" id="campaignName" value="${esc(state.campaignName)}" placeholder="SI | SOL | FOOTHANG | DGV | 15.02.2026 | ZanL">${p?`<div class="tags">${[p.product&&`<span class="tag" style="color:#94a3b8">${esc(p.product)}</span>`,p.brand&&`<span class="tag" style="color:#94a3b8">${esc(p.brand)} → ${esc(getBrand())}</span>`,p.type&&`<span class="tag" style="color:${tc}">${esc(p.type)}</span>`,p.date&&`<span class="tag" style="color:#64748b">${esc(p.date)}</span>`,p.creator&&`<span class="tag" style="color:#64748b">${esc(p.creator)}</span>`].filter(Boolean).join("")}</div>`:""}</div></div>`}
+
+function renderPriority(){return`<div class="section"><div class="section-header"><span>🎯</span><span class="section-title">Priority</span></div><div class="section-body"><div class="flex gap-6">${PRIORITY_LIST.map(p=>`<button class="priority-btn" data-priority="${p}" style="${state.priority===p?`border-color:${PRIORITY_COLORS[p]}60;background:${PRIORITY_COLORS[p]}18;color:${PRIORITY_COLORS[p]}`:""}">${PRIORITY_ICONS[p]} ${p}</button>`).join("")}</div></div></div>`}
+
+function renderPricing(){const t=getType();return`<div class="section"><div class="section-header"><span>💰</span><span class="section-title">Pricing</span></div><div class="section-body"><div class="grid-2"><div><label class="input-label">BEP <span class="req">*</span></label><input class="input-field bep" id="bep" value="${esc(state.bep)}" placeholder="12"></div>${t!=="GDN"?`<div><label class="input-label">CPA (opcijsko)</label><input class="input-field" id="cpa" value="${esc(state.cpa)}" placeholder="—"></div>`:""}${t!=="GDN"?`<div><label class="input-label">Bid Strategy CPA</label><input class="input-field" id="bidCpa" value="${esc(state.bidCpa)}"></div>`:"" }<div><label class="input-label">Budget €</label><input class="input-field" id="budget" value="${esc(state.budget)}"></div></div>${t==="GDN"?'<div class="muted mt-8">GDN: maxCPC (brez CPA)</div>':""}</div></div>`}
+
+function renderCountries(eff,excl){const presets={Vse:ALL_COUNTRIES,Core:CORE_COUNTRIES,Extended:EXTENDED_COUNTRIES};return`<div class="section"><div class="section-header"><span>🌍</span><span class="section-title">Države</span></div><div class="section-body"><div class="flex gap-6 mb-10 flex-wrap">${Object.keys(presets).map(k=>`<button class="preset-btn ${arrEq(state.countries,presets[k])?"active":""}" data-preset="${k}">${k}</button>`).join("")}<button class="preset-btn" data-preset="clear">Počisti</button></div><div class="flex flex-wrap gap-4">${ALL_COUNTRIES.map(c=>`<button class="chip ${state.countries.includes(c)?"active":""}" data-country="${c}">${c}</button>`).join("")}</div>${state.countries.length?`<div class="muted mt-8">${state.countries.length} izbrano${eff.length<state.countries.length&&hasVideos()&&Object.keys(state.rawVideos).length?` → ${eff.length} z videi`:""}</div>`:""}${excl.length?`<div class="warning">⚠ Izključene (brez videov): ${excl.join(", ")}</div>`:""}</div></div>`}
+
+function renderSettings(){return`<div class="section"><div class="section-header clickable" id="toggleSettings"><span>⚙️</span><span class="section-title">Nastavitve</span><span style="color:#475569;font-size:12px">${state.settingsOpen?"▾":"▸"}</span></div>${state.settingsOpen?`<div class="section-body">
+<div style="font-size:10px;font-weight:700;color:#3b82f6;letter-spacing:.08em;margin-bottom:8px">SOLDIUS (SOL)</div>
+<div style="margin-bottom:12px"><label class="input-label">Notion API Key</label><input class="input-field" id="notionApiKey" type="password" value="${esc(state.notionApiKey)}" placeholder="ntn_..." style="font-size:10px"></div>
+<div style="margin-bottom:12px"><label class="input-label">Notion Proxy URL</label><input class="input-field" id="notionProxy" value="${esc(state.notionProxy)}" placeholder="https://your-worker.workers.dev" style="font-size:10px"></div>
+<div style="height:1px;background:#1e293b;margin:12px 0"></div>
+<div style="font-size:10px;font-weight:700;color:#f472b6;letter-spacing:.08em;margin-bottom:8px">VIGOSHOP (VI)</div>
+<div style="margin-bottom:12px"><label class="input-label">Notion API Key</label><input class="input-field" id="notionApiKeyVI" type="password" value="${esc(state.notionApiKeyVI)}" placeholder="ntn_..." style="font-size:10px"></div>
+<div style="margin-bottom:12px"><label class="input-label">Notion Proxy URL <span class="muted">(prazno = isti kot SOL)</span></label><input class="input-field" id="notionProxyVI" value="${esc(state.notionProxyVI)}" placeholder="https://your-worker.workers.dev" style="font-size:10px"></div>
+<div style="margin-bottom:12px"><label class="input-label">Notion Notes</label><input class="input-field" id="notionNotesVI" value="${esc(state.notionNotesVI)}" placeholder="npr. 38 DG/V daily"></div>
+<div style="height:1px;background:#1e293b;margin:12px 0"></div>
+<div style="margin-bottom:12px"><label class="input-label">Google Sheet ID</label><input class="input-field" id="sheetId" value="${esc(state.sheetId)}" style="font-size:10px"></div>
+<div><label class="input-label">Notion Notes (SOL)</label><input class="input-field" id="notionNotes" value="${esc(state.notionNotes)}"></div>
+<div class="muted mt-8">Nastavitve se shranijo v brskalnik.</div></div>`:""}</div>`}
+
+function renderDGVVideos(){
+  const product=getProduct(),ss=state.sheetStatus;
+  let h="";
+  // Sheet data + always show paste
+  h+=`<div class="section"><div class="section-header"><span>🎬</span><span class="section-title">Video podatki</span>${ss==="success"?`<span class="section-badge">iz Sheeta: ${esc(product)}</span>`:""}</div><div class="section-body">`;
+  if(ss==="success"){
+    h+=`<div class="info">✓ Videi naloženi iz Sheet zavihka "${esc(product)}"<br><span class="muted">${Object.keys(state.rawVideos).length} držav · ${Object.values(state.rawVideos).flat().length} videov</span></div>`;
+  }
+  // Always show paste area for manual override
+  h+=`<div class="${ss==="success"?"manual-edit":""}"><div class="muted" style="margin-bottom:6px">${ss==="success"?"Ročno prilepi/prepiši:":"Prilepi iz Google Sheets (stolpci H–J):"}</div><textarea class="input-field" id="sheetPaste" rows="${ss==="success"?"3":"6"}" style="resize:vertical;font-size:10.5px;font-family:monospace" placeholder="Prilepi podatke tukaj...">${esc(state.sheetPaste)}</textarea></div>`;
+  h+=`<button class="preset-btn mt-8" id="refreshSheet">🔄 Osveži iz Sheeta</button>`;
+  h+=`</div></div>`;
+  // OTHER mode
+  h+=`<div class="section"><div class="section-header"><span>🔀</span><span class="section-title">OTHER način</span></div><div class="section-body"><label class="radio-option ${state.otherMode==="all"?"active":""}" data-other="all"><input type="radio" name="otherMode" ${state.otherMode==="all"?"checked":""} style="accent-color:#3b82f6;margin-top:1px"><div><div class="radio-title" style="color:${state.otherMode==="all"?"#e2e8f0":"#64748b"}">OTHER + lokalni</div><div class="radio-desc">Vsaka država dobi OTHER poleg lokalnih</div></div></label><label class="radio-option ${state.otherMode==="without"?"active":""}" data-other="without" style="margin-top:8px"><input type="radio" name="otherMode" ${state.otherMode==="without"?"checked":""} style="accent-color:#3b82f6;margin-top:1px"><div><div class="radio-title" style="color:${state.otherMode==="without"?"#e2e8f0":"#64748b"}">Samo brez lokalnega</div><div class="radio-desc">OTHER samo za države brez lastnega videa</div></div></label></div></div>`;
+  // Video selection
+  if(state.countries.length&&Object.keys(state.rawVideos).length){
+    h+=`<div class="section"><div class="section-header"><span>✅</span><span class="section-title">Izberi videe</span></div><div class="section-body">`;
+    if(state.rawVideos["ALL"]?.length)h+=renderVideoSelector("ALL (OTHER)",state.rawVideos["ALL"],state.selectedVideos["ALL"]||[],"ALL");
+    h+=`<div style="height:1px;background:#1e293b;margin:8px 0"></div>`;
+    for(const c of state.countries){const v=state.rawVideos[c];if(v?.length)h+=renderVideoSelector(c,v,state.selectedVideos[c]||[],c)}
+    const noV=state.countries.filter(c=>!(state.rawVideos[c]?.length));
+    if(noV.length)h+=`<div style="margin-top:8px;padding:8px;background:#111827;border-radius:6px;font-size:10px;color:#475569">Brez lokalnih: ${noV.join(", ")}${(state.selectedVideos["ALL"]||[]).length?" → OTHER":""}</div>`;
+    h+=`</div></div>`;
+  }
+  return h;
+}
+
+function renderVideoSelector(label,videos,selected,dataKey){
+  const blocks=[...new Set(videos.map(v=>v.block))].sort((a,b)=>a-b);
+  let h=`<div class="video-country"><div class="video-country-label"><span class="video-dot" style="background:${selected.length?"#10b981":"#334155"}"></span>${esc(label)} ${selected.length?`<span style="font-size:10px;color:#10b981">(${selected.length})</span>`:""}</div>`;
+  for(const b of blocks){
+    if(blocks.length>1)h+=`<div class="video-block-label">${b===Math.max(...blocks)?"▸ NOVEJŠI":"▸ STAREJŠI"}</div>`;
+    for(const v of videos.filter(x=>x.block===b)){const sel=selected.includes(v.url);h+=`<label class="video-item ${sel?"selected":""}"><input type="checkbox" ${sel?"checked":""} data-vkey="${dataKey}" data-vurl="${esc(v.url)}" style="accent-color:#3b82f6;width:13px;height:13px"><span class="video-url" style="color:${sel?"#93c5fd":"#475569"}">${esc(v.url)}</span></label>`}
+  }
+  return h+"</div>";
+}
+
+function renderGDNVideo(){
+  const product=getProduct();
+  let h=`<div class="section"><div class="section-header"><span>🎬</span><span class="section-title">GDN Video</span>${state.gdnVideoUrl?'<span class="section-badge">1 video</span>':""}</div><div class="section-body">`;
+  // Show GDN videos from sheet if found
+  const gdnVids=state.rawVideos["GDN"]||[];
+  if(state.sheetStatus==="success"&&gdnVids.length){
+    h+=`<div class="info" style="margin-bottom:8px">✓ GDN video iz Sheet zavihka "${esc(product)}"</div>`;
+    for(const v of gdnVids){const sel=state.gdnVideoUrl===v.url;h+=`<label class="radio-option ${sel?"active":""}" style="margin-bottom:4px"><input type="radio" name="gdnvid" ${sel?"checked":""} data-gdnurl="${esc(v.url)}" style="accent-color:#3b82f6"><span style="font-family:monospace;font-size:11px;color:${sel?"#93c5fd":"#64748b"};word-break:break-all">${esc(v.url)}</span></label>`}
+  }
+  // Always show manual input
+  h+=`<div class="${gdnVids.length?"manual-edit":""}"><div class="muted" style="margin-bottom:6px">${gdnVids.length?"Ročno vnesi/prepiši:":"Video link za GDN kampanjo:"}</div><input class="input-field" id="gdnVideoUrl" value="${esc(state.gdnVideoUrl)}" placeholder="https://youtu.be/..." style="color:#93c5fd;font-family:monospace;font-size:12px"></div>`;
+  // Sheet paste for GDN too
+  h+=`<div class="manual-edit"><div class="muted" style="margin-bottom:6px">Ali prilepi iz Sheeta:</div><textarea class="input-field" id="sheetPaste" rows="3" style="resize:vertical;font-size:10.5px;font-family:monospace" placeholder="Prilepi podatke tukaj...">${esc(state.sheetPaste)}</textarea></div>`;
+  h+=`<button class="preset-btn mt-8" id="refreshSheet">🔄 Osveži iz Sheeta</button></div></div>`;
+  return h;
+}
+
+function renderDGPlaceholder(){return`<div class="center-msg"><div style="font-size:32px">🖼️</div><div style="font-size:12px;color:#334155">DG kampanja – brez videov</div><div style="font-size:10px;color:#334155">Pictures: Copy/use from the main campaign</div></div>`}
+
+function renderNotionData(eff,brand){const tc=TYPE_COLORS[getType()],pc=PRIORITY_COLORS[state.priority];const isVI=state.parsed?.brand==="VI";const activeNotes=isVI?state.notionNotesVI:state.notionNotes;return`<div class="section"><div class="section-header"><span>📋</span><span class="section-title">Notion podatki</span></div><div class="section-body"><div class="notion-grid"><span class="notion-label">Campaign name:</span><span class="notion-value" style="font-size:10px;font-weight:600;word-break:break-all">${esc(state.campaignName)||"—"}</span><span class="notion-label">Task name:</span><span style="color:${tc}">${getType()}</span><span class="notion-label">Brand:</span><span class="notion-value">${esc(brand)}</span><span class="notion-label">Status:</span><span style="color:#10b981">New</span><span class="notion-label">Priority:</span><span style="color:${pc}">${PRIORITY_ICONS[state.priority]} ${state.priority}</span><span class="notion-label">Copy to:</span><span class="notion-value" style="word-break:break-all">${eff.join(", ")||"—"}</span><span class="notion-label">Notes:</span><span class="notion-value">${esc(activeNotes)||"—"}</span></div></div></div>`}
+
+function renderOutput(){
+  const o=state.output;
+  const isVI=state.parsed?.brand==="VI";
+  const activeKey=isVI?state.notionApiKeyVI:state.notionApiKey;
+  const activeProxy=isVI?(state.notionProxyVI||state.notionProxy):state.notionProxy;
+  const notionReady=!!(activeKey&&activeProxy);
+  const brandLabel=isVI?"VIGOSHOP":"SOLDIUS";
+  return`<div style="flex:1;display:flex;flex-direction:column"><div class="flex" style="align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span>📄</span> Task output</div><div class="flex gap-8">${o?`<button class="btn-notion ${state.notionStatus==="success"?"success":""}" id="btnNotion" ${!notionReady?"disabled":""}>${state.notionStatus==="loading"?"⟳ ...":state.notionStatus==="success"?"✓ V Notionu!":state.notionStatus==="error"?"✗ Napaka":`📤 Objavi → ${brandLabel}`}</button>`:""}${o?`<button class="btn-copy ${state.copied?"copied":""}" id="btnCopy">${state.copied?"✓ Kopirano!":"Kopiraj"}</button>`:""}</div></div>${o?`<div class="output-box">${renderBoldText(esc(o)).replace(/\n/g,"<br>")}</div>`:'<div class="center-msg"><div style="font-size:36px">⚡</div><div style="font-size:12px">Vnesi campaign name in izberi države</div></div>'}${!notionReady?`<div class="muted mt-8">💡 Za objavo v Notion vnesi ${isVI?"VIGOSHOP":"SOLDIUS"} API key in Proxy URL v ⚙️ Nastavitve</div>`:""}</div>`
+}
+
+// Event binding
+function bindEvents(){
+  on("campaignName","input",e=>{state.campaignName=e.target.value;scheduleRender();scheduleFetch()});
+  on("bep","input",e=>{state.bep=e.target.value;scheduleRender()});
+  on("cpa","input",e=>{state.cpa=e.target.value;scheduleRender()});
+  on("bidCpa","input",e=>{state.bidCpa=e.target.value;scheduleRender()});
+  on("budget","input",e=>{state.budget=e.target.value;scheduleRender()});
+  document.querySelectorAll("[data-priority]").forEach(el=>el.addEventListener("click",()=>{state.priority=el.dataset.priority;render()}));
+  document.querySelectorAll("[data-country]").forEach(el=>el.addEventListener("click",()=>{const c=el.dataset.country;state.countries=state.countries.includes(c)?state.countries.filter(x=>x!==c):[...state.countries,c];render()}));
+  document.querySelectorAll("[data-preset]").forEach(el=>el.addEventListener("click",()=>{const p=el.dataset.preset;if(p==="clear")state.countries=[];else if(p==="Vse")state.countries=[...ALL_COUNTRIES];else if(p==="Core")state.countries=[...CORE_COUNTRIES];else if(p==="Extended")state.countries=[...EXTENDED_COUNTRIES];render()}));
+  on("toggleSettings","click",()=>{state.settingsOpen=!state.settingsOpen;render()});
+  on("notionApiKey","input",e=>{state.notionApiKey=e.target.value;localStorage.setItem("notion_api_key",e.target.value)});
+  on("notionApiKeyVI","input",e=>{state.notionApiKeyVI=e.target.value;localStorage.setItem("notion_api_key_vi",e.target.value)});
+  on("notionProxy","input",e=>{state.notionProxy=e.target.value;localStorage.setItem("notion_proxy",e.target.value)});
+  on("notionProxyVI","input",e=>{state.notionProxyVI=e.target.value;localStorage.setItem("notion_proxy_vi",e.target.value)});
+  on("sheetId","input",e=>{state.sheetId=e.target.value});
+  on("notionNotes","input",e=>{state.notionNotes=e.target.value;localStorage.setItem("notion_notes",e.target.value);scheduleRender()});
+  on("notionNotesVI","input",e=>{state.notionNotesVI=e.target.value;localStorage.setItem("notion_notes_vi",e.target.value);scheduleRender()});
+  on("sheetPaste","input",e=>{state.sheetPaste=e.target.value;processSheetPaste();render()});
+  on("refreshSheet","click",()=>{doFetchSheet()});
+  document.querySelectorAll("[data-vkey]").forEach(el=>el.addEventListener("change",()=>{const k=el.dataset.vkey,u=el.dataset.vurl,cur=state.selectedVideos[k]||[];state.selectedVideos[k]=cur.includes(u)?cur.filter(x=>x!==u):[...cur,u];render()}));
+  document.querySelectorAll("[data-other]").forEach(el=>el.addEventListener("click",()=>{state.otherMode=el.dataset.other;render()}));
+  document.querySelectorAll("[data-gdnurl]").forEach(el=>el.addEventListener("change",()=>{state.gdnVideoUrl=el.dataset.gdnurl;render()}));
+  on("gdnVideoUrl","input",e=>{state.gdnVideoUrl=e.target.value;scheduleRender()});
+  on("btnCopy","click",async()=>{try{await navigator.clipboard.writeText(state.output)}catch{const t=document.createElement("textarea");t.value=state.output;document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t)}state.copied=true;render();setTimeout(()=>{state.copied=false;render()},1800)});
+  on("btnNotion","click",async()=>{
+    const brand=state.parsed?.brand;
+    const isVI=brand==="VI";
+    const apiKey=isVI?state.notionApiKeyVI:state.notionApiKey;
+    const proxy=isVI?(state.notionProxyVI||state.notionProxy):state.notionProxy;
+    const dbId=NOTION_DB[brand]||NOTION_DB.SOL;
+    if(!apiKey||!proxy)return;
+    state.notionStatus="loading";render();
+    try{
+      const activeNotes=isVI?state.notionNotesVI:state.notionNotes;
+      await createNotionTask(proxy,apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId});
+      state.notionStatus="success";render();setTimeout(()=>{state.notionStatus="";render()},3000)
+    }catch(err){console.error("Notion:",err);state.notionStatus="error";render();setTimeout(()=>{state.notionStatus="";render()},3000)}
+  });
+}
+
+function on(id,ev,fn){const el=document.getElementById(id);if(el)el.addEventListener(ev,fn)}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+function arrEq(a,b){return JSON.stringify([...a].sort())===JSON.stringify([...b].sort())}
+let renderTimer;function scheduleRender(){clearTimeout(renderTimer);renderTimer=setTimeout(render,50)}
+let fetchTimer;function scheduleFetch(){clearTimeout(fetchTimer);fetchTimer=setTimeout(()=>{const p=getProduct();if(p&&p.length>=2)doFetchSheet()},800)}
+
+function applyCountryPairs(videos){
+  const r={...videos};
+  for(const[a,b]of COUNTRY_PAIRS){
+    if(r[a]?.length&&!r[b]?.length)r[b]=r[a].map(v=>({...v}));
+    else if(r[b]?.length&&!r[a]?.length)r[a]=r[b].map(v=>({...v}));
+  }
+  return r;
+}
+
+function processSheetPaste(){
+  if(state.sheetPaste.trim()){
+    state.rawVideos=applyCountryPairs(parseVideos(state.sheetPaste));
+    autoSelectNewest();
+    state.sheetStatus="paste";
+  }
+}
+
+function autoSelectNewest(){
+  const auto={};
+  for(const[c,vids]of Object.entries(state.rawVideos)){if(!vids.length)continue;const maxB=Math.max(...vids.map(v=>v.block));auto[c]=vids.filter(v=>v.block===maxB).map(v=>v.url)}
+  state.selectedVideos=auto;
+  // GDN: auto-select GDN labeled video
+  if(isGdn()&&state.rawVideos["GDN"]?.length){
+    const newest=state.rawVideos["GDN"].reduce((a,b)=>b.block>a.block?b:a);
+    state.gdnVideoUrl=newest.url;
+  }
+}
+
+async function doFetchSheet(){
+  const product=getProduct();if(!product||!state.sheetId)return;
+  state.sheetStatus="loading";render();
+  const csv=await fetchSheetTab(state.sheetId,product.toUpperCase());
+  if(csv&&csv.trim()){state.rawVideos=applyCountryPairs(parseVideos(csv));autoSelectNewest();state.sheetStatus="success"}
+  else{state.sheetStatus="error"}
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
