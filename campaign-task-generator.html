@@ -65,7 +65,7 @@ const PRIORITY_COLORS={High:"#fbbf24",Medium:"#f97316",Low:"#64748b"};
 const TYPE_COLORS={DGV:"#a78bfa",DG:"#6ee7b7",GDN:"#f472b6"};
 const TYPE_BG={DGV:"#8b5cf620",DG:"#10b98120",GDN:"#ec489920"};
 const DEFAULT_SHEET_ID="1a2JrH9S-kjZmNk2FV57u0IFuoURaLuhVvIAueoyRbhE";
-const NOTION_DB={SOL:"e8d941b4961c43f0b793879f2129b3c7",VI:"253ff746228d80dfbc34ed3e7df938ee"};
+const NOTION_DB={SOL:"e8d941b4961c43f0b793879f2129b3c7",VI:"253ff746228d80dfbc34ed3e7df938ee",TAHIRA:"1bbff746228d807ba0c3eb86c7fb98da"};
 
 // Templates
 function remAudience(isVI){return isVI?`REM Audience: Use already created audience — just search **"REM | ALL"**`:`REM Audience: All users 30, All orders 90, Cart 540, Returning Users 30 (if some is missing add Homepage 540, All users 90,..)`}
@@ -109,6 +109,7 @@ async function fetchSheetTab(sheetId,tabName){
 // Notion API
 async function createNotionTask(apiKey, data) {
   const isVI = data.brand === "VIGOSHOP";
+  const isTahira = data.target === "tahira";
   const properties = {
     "Task name": {
       title: [{ text: { content: data.taskName } }]
@@ -117,9 +118,9 @@ async function createNotionTask(apiKey, data) {
       rich_text: [{ text: { content: data.campaignName } }]
     },
     [isVI ? "BRAND" : "Brand"]: {
-      select: { name: data.brand }
+      select: { name: isTahira ? data.brand : data.brand }
     },
-    "Status": isVI
+    "Status": (isVI||isTahira)
       ? { select: { name: "New" } }
       : { status: { name: "New" } },
     "Priority": {
@@ -174,13 +175,17 @@ const state={
   bep:"12",cpa:"",bidCpa:"8",budget:"15",
   priority:"Medium",countries:[],
   otherMode:"without",
+  rsNote:false,
   rawVideos:{},selectedVideos:{},
   sheetPaste:"",sheetId:DEFAULT_SHEET_ID,sheetStatus:"",
   gdnVideoUrl:"",
   notionNotes:localStorage.getItem("notion_notes")||"38 DG/V daily",
   notionNotesVI:localStorage.getItem("notion_notes_vi")||"",
+  notionNotesTahira:localStorage.getItem("notion_notes_tahira")||"",
   notionApiKey:localStorage.getItem("notion_api_key")||"",
   notionApiKeyVI:localStorage.getItem("notion_api_key_vi")||"",
+  notionApiKeyTahira:localStorage.getItem("notion_api_key_tahira")||"",
+  notionTarget:"auto",
   output:"",copied:false,notionStatus:"",prevType:"",settingsOpen:false,
   manualEditOpen:false,
 };
@@ -240,7 +245,8 @@ function generateOutput(){
   const excLoc=[];
   if(eff.includes("ES"))excLoc.push("SPAIN:\nBalearic Islands, Spain\nCanary Islands, Spain");
   if(eff.includes("PT"))excLoc.push("PORTUGAL:\nAzores, Portugal\nMadeira, Portugal");
-  if(excLoc.length)result+=`\n\nEXCLUDE LOCATIONS:\n\n${excLoc.join("\n\n")}`;
+  if(state.rsNote&&eff.includes("RS"))result+=`\n• **For RS add 2 ads per AD group: 1 Cyrillic, 1 Latin**`;
+  if(excLoc.length)result+=`\n\n**EXCLUDE LOCATIONS:**\n\n${excLoc.join("\n\n")}`;
   return result;
 }
 
@@ -280,7 +286,7 @@ function renderPriority(){return`<div class="section"><div class="section-header
 
 function renderPricing(){const t=getType();return`<div class="section"><div class="section-header"><span>💰</span><span class="section-title">Pricing</span></div><div class="section-body"><div class="grid-2"><div><label class="input-label">BEP <span class="req">*</span></label><input class="input-field bep" id="bep" value="${esc(state.bep)}" placeholder="12"></div>${t!=="GDN"?`<div><label class="input-label">CPA (opcijsko)</label><input class="input-field" id="cpa" value="${esc(state.cpa)}" placeholder="—"></div>`:""}${t!=="GDN"?`<div><label class="input-label">Bid Strategy CPA</label><input class="input-field" id="bidCpa" value="${esc(state.bidCpa)}"></div>`:"" }<div><label class="input-label">Budget €</label><input class="input-field" id="budget" value="${esc(state.budget)}"></div></div>${t==="GDN"?'<div class="muted mt-8">GDN: maxCPC (brez CPA)</div>':""}</div></div>`}
 
-function renderCountries(eff,excl){const presets={Vse:ALL_COUNTRIES,Core:CORE_COUNTRIES,Extended:EXTENDED_COUNTRIES};return`<div class="section"><div class="section-header"><span>🌍</span><span class="section-title">Države</span></div><div class="section-body"><div class="flex gap-6 mb-10 flex-wrap">${Object.keys(presets).map(k=>`<button class="preset-btn ${arrEq(state.countries,presets[k])?"active":""}" data-preset="${k}">${k}</button>`).join("")}<button class="preset-btn" data-preset="clear">Počisti</button></div><div class="flex flex-wrap gap-4">${ALL_COUNTRIES.map(c=>`<button class="chip ${state.countries.includes(c)?"active":""}" data-country="${c}">${c}</button>`).join("")}</div>${state.countries.length?`<div class="muted mt-8">${state.countries.length} izbrano${eff.length<state.countries.length&&hasVideos()&&Object.keys(state.rawVideos).length?` → ${eff.length} z videi`:""}</div>`:""}${excl.length?`<div class="warning">⚠ Izključene (brez videov): ${excl.join(", ")}</div>`:""}</div></div>`}
+function renderCountries(eff,excl){const presets={Vse:ALL_COUNTRIES,Core:CORE_COUNTRIES,Extended:EXTENDED_COUNTRIES};return`<div class="section"><div class="section-header"><span>🌍</span><span class="section-title">Države</span></div><div class="section-body"><div class="flex gap-6 mb-10 flex-wrap">${Object.keys(presets).map(k=>`<button class="preset-btn ${arrEq(state.countries,presets[k])?"active":""}" data-preset="${k}">${k}</button>`).join("")}<button class="preset-btn" data-preset="clear">Počisti</button></div><div class="flex flex-wrap gap-4">${ALL_COUNTRIES.map(c=>`<button class="chip ${state.countries.includes(c)?"active":""}" data-country="${c}">${c}</button>`).join("")}</div>${state.countries.length?`<div class="muted mt-8">${state.countries.length} izbrano${eff.length<state.countries.length&&hasVideos()&&Object.keys(state.rawVideos).length?` → ${eff.length} z videi`:""}</div>`:""}${excl.length?`<div class="warning">⚠ Izključene (brez videov): ${excl.join(", ")}</div>`:""}${state.countries.includes("RS")?`<label style="display:flex;align-items:center;gap:8px;margin-top:10px;cursor:pointer;font-size:11px;color:${state.rsNote?"#e2e8f0":"#64748b"}"><input type="checkbox" id="rsNote" ${state.rsNote?"checked":""} style="accent-color:#3b82f6;width:13px;height:13px"> RS: Cyrillic + Latin (2 ads per group)</label>`:""}</div></div>`}
 
 function renderSettings(){return`<div class="section"><div class="section-header clickable" id="toggleSettings"><span>⚙️</span><span class="section-title">Nastavitve</span><span style="color:#475569;font-size:12px">${state.settingsOpen?"▾":"▸"}</span></div>${state.settingsOpen?`<div class="section-body">
 <div style="font-size:10px;font-weight:700;color:#3b82f6;letter-spacing:.08em;margin-bottom:8px">SOLDIUS (SOL)</div>
@@ -289,6 +295,11 @@ function renderSettings(){return`<div class="section"><div class="section-header
 <div style="font-size:10px;font-weight:700;color:#f472b6;letter-spacing:.08em;margin-bottom:8px">VIGOSHOP (VI)</div>
 <div style="margin-bottom:12px"><label class="input-label">Notion API Key</label><input class="input-field" id="notionApiKeyVI" type="password" value="${esc(state.notionApiKeyVI)}" placeholder="ntn_..." style="font-size:10px"></div>
 <div style="margin-bottom:12px"><label class="input-label">Notion Notes</label><input class="input-field" id="notionNotesVI" value="${esc(state.notionNotesVI)}" placeholder="npr. 38 DG/V daily"></div>
+<div style="height:1px;background:#1e293b;margin:12px 0"></div>
+<div style="height:1px;background:#1e293b;margin:12px 0"></div>
+<div style="font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:.08em;margin-bottom:8px">TAHIRA</div>
+<div style="margin-bottom:12px"><label class="input-label">Notion API Key</label><input class="input-field" id="notionApiKeyTahira" type="password" value="${esc(state.notionApiKeyTahira)}" placeholder="ntn_..." style="font-size:10px"></div>
+<div style="margin-bottom:12px"><label class="input-label">Notion Notes</label><input class="input-field" id="notionNotesTahira" value="${esc(state.notionNotesTahira)}" placeholder="npr. 22 DG per day"></div>
 <div style="height:1px;background:#1e293b;margin:12px 0"></div>
 <div style="margin-bottom:12px"><label class="input-label">Google Sheet ID</label><input class="input-field" id="sheetId" value="${esc(state.sheetId)}" style="font-size:10px"></div>
 <div><label class="input-label">Notion Notes (SOL)</label><input class="input-field" id="notionNotes" value="${esc(state.notionNotes)}"></div>
@@ -350,15 +361,24 @@ function renderGDNVideo(){
 
 function renderDGPlaceholder(){return`<div class="center-msg"><div style="font-size:32px">🖼️</div><div style="font-size:12px;color:#334155">DG kampanja – brez videov</div><div style="font-size:10px;color:#334155">Pictures: Copy/use from the main campaign</div></div>`}
 
-function renderNotionData(eff,brand){const tc=TYPE_COLORS[getType()],pc=PRIORITY_COLORS[state.priority];const isVI=state.parsed?.brand==="VI";const activeNotes=isVI?state.notionNotesVI:state.notionNotes;return`<div class="section"><div class="section-header"><span>📋</span><span class="section-title">Notion podatki</span></div><div class="section-body"><div class="notion-grid"><span class="notion-label">Campaign name:</span><span class="notion-value" style="font-size:10px;font-weight:600;word-break:break-all">${esc(state.campaignName)||"—"}</span><span class="notion-label">Task name:</span><span style="color:${tc}">${getType()}</span><span class="notion-label">Brand:</span><span class="notion-value">${esc(brand)}</span><span class="notion-label">Status:</span><span style="color:#10b981">New</span><span class="notion-label">Priority:</span><span style="color:${pc}">${PRIORITY_ICONS[state.priority]} ${state.priority}</span><span class="notion-label">Copy to:</span><span class="notion-value" style="word-break:break-all">${eff.join(", ")||"—"}</span><span class="notion-label">Notes:</span><span class="notion-value">${esc(activeNotes)||"—"}</span></div></div></div>`}
+function renderNotionData(eff,brand){
+  const tc=TYPE_COLORS[getType()],pc=PRIORITY_COLORS[state.priority];
+  const isVI=state.parsed?.brand==="VI";
+  const activeNotes=state.notionTarget==="tahira"?state.notionNotesTahira:isVI?state.notionNotesVI:state.notionNotes;
+  const targets=[{id:"auto",label:"Auto"},{id:"tahira",label:"Tahira"}];
+  return`<div class="section"><div class="section-header"><span>📋</span><span class="section-title">Notion podatki</span></div><div class="section-body">
+<div class="flex gap-4 mb-10">${targets.map(t=>`<button class="preset-btn ${state.notionTarget===t.id?"active":""}" data-target="${t.id}">${t.label}</button>`).join("")}</div>
+<div class="notion-grid"><span class="notion-label">Campaign name:</span><span class="notion-value" style="font-size:10px;font-weight:600;word-break:break-all">${esc(state.campaignName)||"—"}</span><span class="notion-label">Task name:</span><span style="color:${tc}">${getType()}</span><span class="notion-label">Brand:</span><span class="notion-value">${esc(brand)}</span><span class="notion-label">Status:</span><span style="color:#10b981">New</span><span class="notion-label">Priority:</span><span style="color:${pc}">${PRIORITY_ICONS[state.priority]} ${state.priority}</span><span class="notion-label">Copy to:</span><span class="notion-value" style="word-break:break-all">${eff.join(", ")||"—"}</span><span class="notion-label">Notes:</span><span class="notion-value">${esc(activeNotes)||"—"}</span></div></div></div>`
+}
 
 function renderOutput(){
   const o=state.output;
   const isVI=state.parsed?.brand==="VI";
-  const activeKey=isVI?state.notionApiKeyVI:state.notionApiKey;
+  const isTahira=state.notionTarget==="tahira";
+  const activeKey=isTahira?state.notionApiKeyTahira:isVI?state.notionApiKeyVI:state.notionApiKey;
   const notionReady=!!activeKey;
-  const brandLabel=isVI?"VIGOSHOP":"SOLDIUS";
-  return`<div style="flex:1;display:flex;flex-direction:column"><div class="flex" style="align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span>📄</span> Task output</div><div class="flex gap-8">${o?`<button class="btn-notion ${state.notionStatus==="success"?"success":""}" id="btnNotion" ${!notionReady?"disabled":""}>${state.notionStatus==="loading"?"⟳ ...":state.notionStatus==="success"?"✓ V Notionu!":state.notionStatus==="error"?"✗ Napaka":`📤 Objavi → ${brandLabel}`}</button>`:""}${o?`<button class="btn-copy ${state.copied?"copied":""}" id="btnCopy">${state.copied?"✓ Kopirano!":"Kopiraj"}</button>`:""}</div></div>${o?`<div class="output-box">${renderBoldText(esc(o)).replace(/\n/g,"<br>")}</div>`:'<div class="center-msg"><div style="font-size:36px">⚡</div><div style="font-size:12px">Vnesi campaign name in izberi države</div></div>'}${!notionReady?`<div class="muted mt-8">💡 Za objavo v Notion vnesi ${isVI?"VIGOSHOP":"SOLDIUS"} API key v ⚙️ Nastavitve</div>`:""}</div>`
+  const targetLabel=isTahira?"Tahira":isVI?"VIGOSHOP":"SOLDIUS";
+  return`<div style="flex:1;display:flex;flex-direction:column"><div class="flex" style="align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span>📄</span> Task output</div><div class="flex gap-8">${o?`<button class="btn-notion ${state.notionStatus==="success"?"success":""}" id="btnNotion" ${!notionReady?"disabled":""}>${state.notionStatus==="loading"?"⟳ ...":state.notionStatus==="success"?"✓ V Notionu!":state.notionStatus==="error"?"✗ Napaka":`📤 Objavi → ${targetLabel}`}</button>`:""}${o?`<button class="btn-copy ${state.copied?"copied":""}" id="btnCopy">${state.copied?"✓ Kopirano!":"Kopiraj"}</button>`:""}</div></div>${o?`<div class="output-box">${renderBoldText(esc(o)).replace(/\n/g,"<br>")}</div>`:'<div class="center-msg"><div style="font-size:36px">⚡</div><div style="font-size:12px">Vnesi campaign name in izberi države</div></div>'}${!notionReady?`<div class="muted mt-8">💡 Za objavo v Notion vnesi ${targetLabel} API key v ⚙️ Nastavitve</div>`:""}</div>`
 }
 
 // Event binding
@@ -378,23 +398,28 @@ function bindEvents(){
   on("sheetId","input",e=>{state.sheetId=e.target.value});
   on("notionNotes","input",e=>{state.notionNotes=e.target.value;localStorage.setItem("notion_notes",e.target.value);scheduleRender()});
   on("notionNotesVI","input",e=>{state.notionNotesVI=e.target.value;localStorage.setItem("notion_notes_vi",e.target.value);scheduleRender()});
+  on("notionApiKeyTahira","input",e=>{state.notionApiKeyTahira=e.target.value;localStorage.setItem("notion_api_key_tahira",e.target.value)});
+  on("notionNotesTahira","input",e=>{state.notionNotesTahira=e.target.value;localStorage.setItem("notion_notes_tahira",e.target.value);scheduleRender()});
   on("sheetPaste","input",e=>{state.sheetPaste=e.target.value;processSheetPaste();render()});
   on("refreshSheet","click",()=>{doFetchSheet()});
   document.querySelectorAll("[data-vkey]").forEach(el=>el.addEventListener("change",()=>{const k=el.dataset.vkey,u=el.dataset.vurl,cur=state.selectedVideos[k]||[];state.selectedVideos[k]=cur.includes(u)?cur.filter(x=>x!==u):[...cur,u];render()}));
   document.querySelectorAll("[data-other]").forEach(el=>el.addEventListener("click",()=>{state.otherMode=el.dataset.other;render()}));
+  on("rsNote","change",e=>{state.rsNote=e.target.checked;render()});
   document.querySelectorAll("[data-gdnurl]").forEach(el=>el.addEventListener("change",()=>{state.gdnVideoUrl=el.dataset.gdnurl;render()}));
   on("gdnVideoUrl","input",e=>{state.gdnVideoUrl=e.target.value;scheduleRender()});
   on("btnCopy","click",async()=>{try{await navigator.clipboard.writeText(state.output)}catch{const t=document.createElement("textarea");t.value=state.output;document.body.appendChild(t);t.select();document.execCommand("copy");document.body.removeChild(t)}state.copied=true;render();setTimeout(()=>{state.copied=false;render()},1800)});
+  document.querySelectorAll("[data-target]").forEach(el=>el.addEventListener("click",()=>{state.notionTarget=el.dataset.target;render()}));
   on("btnNotion","click",async()=>{
     const brand=state.parsed?.brand;
     const isVI=brand==="VI";
-    const apiKey=isVI?state.notionApiKeyVI:state.notionApiKey;
-    const dbId=NOTION_DB[brand]||NOTION_DB.SOL;
+    const isTahira=state.notionTarget==="tahira";
+    const apiKey=isTahira?state.notionApiKeyTahira:isVI?state.notionApiKeyVI:state.notionApiKey;
+    const dbId=isTahira?NOTION_DB.TAHIRA:NOTION_DB[brand]||NOTION_DB.SOL;
     if(!apiKey)return;
     state.notionStatus="loading";render();
     try{
-      const activeNotes=isVI?state.notionNotesVI:state.notionNotes;
-      await createNotionTask(apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId});
+      const activeNotes=isTahira?state.notionNotesTahira:isVI?state.notionNotesVI:state.notionNotes;
+      await createNotionTask(apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId,target:state.notionTarget});
       state.notionStatus="success";render();setTimeout(()=>{state.notionStatus="";render()},3000)
     }catch(err){console.error("Notion:",err);state.notionStatus="error";render();setTimeout(()=>{state.notionStatus="";render()},3000)}
   });

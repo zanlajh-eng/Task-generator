@@ -95,7 +95,12 @@ cmd = [
     edge_path,
     f"--app=file:///{target_html}",
     "--disable-web-security",
-    "--user-data-dir=C:/temp_edge_generator"
+    "--user-data-dir=C:/temp_edge_generator",
+    "--no-first-run",
+    "--disable-sync",
+    "--disable-extensions",
+    "--no-default-browser-check",
+    "--disable-background-networking",
 ]
 
 proc = subprocess.Popen(cmd)
