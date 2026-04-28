@@ -108,8 +108,8 @@ async function fetchSheetTab(sheetId,tabName){
 
 // Notion API
 async function createNotionTask(apiKey, data) {
-  const isVI = data.brand === "VIGOSHOP";
-  const isTahira = data.target === "tahira";
+  const tgt = data.target; // "sol" | "vi" | "tahira"
+  const useVISchema = tgt === "vi";
   const properties = {
     "Task name": {
       title: [{ text: { content: data.taskName } }]
@@ -117,10 +117,10 @@ async function createNotionTask(apiKey, data) {
     "Campaign name (base)": {
       rich_text: [{ text: { content: data.campaignName } }]
     },
-    [isVI ? "BRAND" : "Brand"]: {
-      select: { name: isTahira ? data.brand : data.brand }
+    [useVISchema ? "BRAND" : "Brand"]: {
+      select: { name: data.brand }
     },
-    "Status": (isVI||isTahira)
+    "Status": useVISchema
       ? { select: { name: "New" } }
       : { status: { name: "New" } },
     "Priority": {
@@ -185,7 +185,8 @@ const state={
   notionApiKey:localStorage.getItem("notion_api_key")||"",
   notionApiKeyVI:localStorage.getItem("notion_api_key_vi")||"",
   notionApiKeyTahira:localStorage.getItem("notion_api_key_tahira")||"",
-  notionTarget:"auto",
+  notionTarget:"sol",
+  prevBrand:"",
   output:"",copied:false,notionStatus:"",prevType:"",settingsOpen:false,
   manualEditOpen:false,
 };
@@ -265,6 +266,8 @@ function render(){
   state.output=generateOutput();
   const t=getType();
   if(t!==state.prevType){state.prevType=t;if(t==="GDN"){state.budget="11";if(!state.countries.length)state.countries=[...CORE_COUNTRIES]}else if(t==="DG"||t==="DGV"){state.budget="15"}state.output=generateOutput()}
+  const currentBrand=state.parsed?.brand||"";
+  if(currentBrand!==state.prevBrand){state.prevBrand=currentBrand;state.notionTarget=currentBrand==="VI"?"vi":currentBrand==="SOL"?"sol":"sol"}
   const p=state.parsed,brand=getBrand(),product=getProduct(),eff=getEffectiveCountries(),excl=getExcludedCountries();
   const tc=TYPE_COLORS[t]||"#94a3b8",tb=TYPE_BG[t]||"#1e293b",pc=PRIORITY_COLORS[state.priority];
 
@@ -364,8 +367,9 @@ function renderDGPlaceholder(){return`<div class="center-msg"><div style="font-s
 function renderNotionData(eff,brand){
   const tc=TYPE_COLORS[getType()],pc=PRIORITY_COLORS[state.priority];
   const isVI=state.parsed?.brand==="VI";
-  const activeNotes=state.notionTarget==="tahira"?state.notionNotesTahira:isVI?state.notionNotesVI:state.notionNotes;
-  const targets=[{id:"auto",label:"Auto"},{id:"tahira",label:"Tahira"}];
+  const tgt2=state.notionTarget;
+  const activeNotes=tgt2==="tahira"?state.notionNotesTahira:tgt2==="vi"?state.notionNotesVI:state.notionNotes;
+  const targets=[{id:"sol",label:"SOLDIUS"},{id:"vi",label:"VIGOSHOP"},{id:"tahira",label:"Tahira"}];
   return`<div class="section"><div class="section-header"><span>📋</span><span class="section-title">Notion podatki</span></div><div class="section-body">
 <div class="flex gap-4 mb-10">${targets.map(t=>`<button class="preset-btn ${state.notionTarget===t.id?"active":""}" data-target="${t.id}">${t.label}</button>`).join("")}</div>
 <div class="notion-grid"><span class="notion-label">Campaign name:</span><span class="notion-value" style="font-size:10px;font-weight:600;word-break:break-all">${esc(state.campaignName)||"—"}</span><span class="notion-label">Task name:</span><span style="color:${tc}">${getType()}</span><span class="notion-label">Brand:</span><span class="notion-value">${esc(brand)}</span><span class="notion-label">Status:</span><span style="color:#10b981">New</span><span class="notion-label">Priority:</span><span style="color:${pc}">${PRIORITY_ICONS[state.priority]} ${state.priority}</span><span class="notion-label">Copy to:</span><span class="notion-value" style="word-break:break-all">${eff.join(", ")||"—"}</span><span class="notion-label">Notes:</span><span class="notion-value">${esc(activeNotes)||"—"}</span></div></div></div>`
@@ -373,11 +377,10 @@ function renderNotionData(eff,brand){
 
 function renderOutput(){
   const o=state.output;
-  const isVI=state.parsed?.brand==="VI";
-  const isTahira=state.notionTarget==="tahira";
-  const activeKey=isTahira?state.notionApiKeyTahira:isVI?state.notionApiKeyVI:state.notionApiKey;
+  const tgt=state.notionTarget;
+  const activeKey=tgt==="tahira"?state.notionApiKeyTahira:tgt==="vi"?state.notionApiKeyVI:state.notionApiKey;
   const notionReady=!!activeKey;
-  const targetLabel=isTahira?"Tahira":isVI?"VIGOSHOP":"SOLDIUS";
+  const targetLabel=tgt==="tahira"?"Tahira":tgt==="vi"?"VIGOSHOP":"SOLDIUS";
   return`<div style="flex:1;display:flex;flex-direction:column"><div class="flex" style="align-items:center;justify-content:space-between;margin-bottom:8px"><div style="font-size:12px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span>📄</span> Task output</div><div class="flex gap-8">${o?`<button class="btn-notion ${state.notionStatus==="success"?"success":""}" id="btnNotion" ${!notionReady?"disabled":""}>${state.notionStatus==="loading"?"⟳ ...":state.notionStatus==="success"?"✓ V Notionu!":state.notionStatus==="error"?"✗ Napaka":`📤 Objavi → ${targetLabel}`}</button>`:""}${o?`<button class="btn-copy ${state.copied?"copied":""}" id="btnCopy">${state.copied?"✓ Kopirano!":"Kopiraj"}</button>`:""}</div></div>${o?`<div class="output-box">${renderBoldText(esc(o)).replace(/\n/g,"<br>")}</div>`:'<div class="center-msg"><div style="font-size:36px">⚡</div><div style="font-size:12px">Vnesi campaign name in izberi države</div></div>'}${!notionReady?`<div class="muted mt-8">💡 Za objavo v Notion vnesi ${targetLabel} API key v ⚙️ Nastavitve</div>`:""}</div>`
 }
 
@@ -411,15 +414,14 @@ function bindEvents(){
   document.querySelectorAll("[data-target]").forEach(el=>el.addEventListener("click",()=>{state.notionTarget=el.dataset.target;render()}));
   on("btnNotion","click",async()=>{
     const brand=state.parsed?.brand;
-    const isVI=brand==="VI";
-    const isTahira=state.notionTarget==="tahira";
-    const apiKey=isTahira?state.notionApiKeyTahira:isVI?state.notionApiKeyVI:state.notionApiKey;
-    const dbId=isTahira?NOTION_DB.TAHIRA:NOTION_DB[brand]||NOTION_DB.SOL;
+    const tgt=state.notionTarget;
+    const apiKey=tgt==="tahira"?state.notionApiKeyTahira:tgt==="vi"?state.notionApiKeyVI:state.notionApiKey;
+    const dbId=tgt==="tahira"?NOTION_DB.TAHIRA:tgt==="vi"?NOTION_DB.VI:NOTION_DB.SOL;
     if(!apiKey)return;
     state.notionStatus="loading";render();
     try{
-      const activeNotes=isTahira?state.notionNotesTahira:isVI?state.notionNotesVI:state.notionNotes;
-      await createNotionTask(apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId,target:state.notionTarget});
+      const activeNotes=tgt==="tahira"?state.notionNotesTahira:tgt==="vi"?state.notionNotesVI:state.notionNotes;
+      await createNotionTask(apiKey,{campaignName:state.campaignName.trim(),taskName:getType(),brand:getBrand(),priority:state.priority,copyTo:getEffectiveCountries().join(", "),notes:activeNotes,taskBody:state.output,dbId,target:tgt});
       state.notionStatus="success";render();setTimeout(()=>{state.notionStatus="";render()},3000)
     }catch(err){console.error("Notion:",err);state.notionStatus="error";render();setTimeout(()=>{state.notionStatus="";render()},3000)}
   });
